@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "YouTube Spam Comment Filter",
-  "description": "Filters likely spam comments from YouTube video pages.",
+  "name": "Spam Comment Filter for YouTube™",
+  "description": "Hide likely spam comments on YouTube™ pages with local filtering and feedback.",
   "version": "0.1.0",
   "permissions": ["storage", "activeTab", "scripting"],
   "host_permissions": ["https://www.youtube.com/*"],
@@ -13,7 +13,7 @@
     }
   ],
   "action": {
-    "default_title": "YouTube Spam Comment Filter",
+    "default_title": "Spam Comment Filter for YouTube™",
     "default_popup": "popup.html"
   }
 }
