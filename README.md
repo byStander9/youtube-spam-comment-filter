@@ -11,6 +11,9 @@ A Chrome extension that hides likely spam comments on YouTube video pages while 
 - Lets you turn filtering on or off from the extension popup.
 - Shows scanned and hidden comment counts.
 - Can reveal filtered comments in a faded debug view.
+- Lets you mark comments as `Spam` or `Not spam` while browsing.
+- Improves filtering locally from your feedback.
+- Shows local learning stats and lets you clear learned data from the popup.
 - Exempts comments written by the video uploader.
 - Exempts comments with many likes. The default threshold is 100 likes.
 - Avoids treating casual repeated letters such as `ㅋㅋㅋㅋ`, `ㅎㅎㅎㅎ`, or `!!!!!` as spam by themselves.
@@ -32,6 +35,17 @@ Current spam signals include:
 - Very short promotional pitches
 
 Filtering is score-based, so a plain link or casual repeated expression should not be enough to hide a comment.
+
+## Local Learning
+
+The extension can learn from your own feedback without any external program or server.
+
+- Comment feedback is stored in Chrome extension local storage.
+- Raw comment text is not stored. The extension stores a comment hash, matched filter signals, and your feedback label.
+- Exact feedback can override future decisions for the same comment text.
+- Repeated feedback adjusts the weight of signals such as `link`, `contact`, or `money-promo`.
+- Learning stays on your browser and is not shared with other users.
+- You can clear all learned feedback from the extension popup.
 
 ## Local Setup
 
