@@ -26,7 +26,15 @@ const REASONS_ATTRIBUTE = "data-yscf-reasons";
 const HASH_ATTRIBUTE = "data-yscf-hash";
 const FEEDBACK_ATTRIBUTE = "data-yscf-feedback";
 const STYLE_ID = "yscf-style";
-const FEEDBACK_CONTROLS_CLASS = "yscf-feedback-controls";
+const MENU_ITEM_CLASS = "yscf-menu-item";
+const MENU_SEPARATOR_CLASS = "yscf-menu-separator";
+const MENU_SELECTOR = [
+  "ytd-menu-popup-renderer tp-yt-paper-listbox",
+  "ytd-menu-popup-renderer [role='menu']",
+  "ytd-popup-container tp-yt-paper-listbox",
+  "ytd-popup-container [role='menu']",
+  "tp-yt-paper-listbox[role='menu']"
+].join(",");
 
 const DEFAULT_SETTINGS: FilterSettings = {
   enabled: true,
@@ -41,6 +49,7 @@ let stats: FilterStats = {
 let learningProfile: LearningProfile = createEmptyLearningProfile();
 let scanQueued = false;
 let lastSeenUrl = location.href;
+let activeFeedbackContainer: HTMLElement | null = null;
 
 if (!window.__yscfInitialized) {
   window.__yscfInitialized = true;
@@ -50,6 +59,7 @@ if (!window.__yscfInitialized) {
 async function initialize(): Promise<void> {
   injectStyles();
   registerMessageHandlers();
+  registerMenuHandlers();
   observeCommentChanges(scanSoon);
   [settings, learningProfile] = await Promise.all([
     getContentSettings(),
@@ -126,61 +136,126 @@ function scanComments(): void {
       continue;
     }
 
-    const commentHash = hashCommentText(comment.text);
-    const baseResult = detectSpam(comment.text, {
-      isUploader: comment.isUploader,
-      likeCount: comment.likeCount
-    });
-    const result = applyLearningToResult(baseResult, learningProfile, commentHash);
-
-    comment.container.setAttribute(PROCESSED_ATTRIBUTE, "true");
-    comment.container.setAttribute(REASONS_ATTRIBUTE, result.reasons.join(","));
-    comment.container.setAttribute(HASH_ATTRIBUTE, commentHash);
-    stats.scannedCount += 1;
-
-    if (result.isSpam) {
-      comment.container.setAttribute(HIDDEN_ATTRIBUTE, "true");
-      stats.hiddenCount += 1;
-    }
-
-    renderFeedbackControls(comment.container);
+    processComment(comment);
   }
 
   applyVisibility();
 }
 
-function renderFeedbackControls(container: HTMLElement): void {
-  if (container.querySelector(`.${FEEDBACK_CONTROLS_CLASS}`)) {
+function processComment(comment: {
+  container: HTMLElement;
+  text: string;
+  isUploader: boolean;
+  likeCount: number;
+}): void {
+  const commentHash = hashCommentText(comment.text);
+  const baseResult = detectSpam(comment.text, {
+    isUploader: comment.isUploader,
+    likeCount: comment.likeCount
+  });
+  const result = applyLearningToResult(baseResult, learningProfile, commentHash);
+
+  comment.container.setAttribute(PROCESSED_ATTRIBUTE, "true");
+  comment.container.setAttribute(REASONS_ATTRIBUTE, result.reasons.join(","));
+  comment.container.setAttribute(HASH_ATTRIBUTE, commentHash);
+  stats.scannedCount += 1;
+
+  if (result.isSpam) {
+    comment.container.setAttribute(HIDDEN_ATTRIBUTE, "true");
+    stats.hiddenCount += 1;
+  }
+}
+
+function registerMenuHandlers(): void {
+  document.addEventListener("pointerdown", (event) => {
+    const target = event.target as Element | null;
+    const container = target?.closest<HTMLElement>(commentContainerSelector);
+    if (!container) {
+      return;
+    }
+
+    activeFeedbackContainer = container;
+    window.setTimeout(injectFeedbackMenuItems, 0);
+    window.setTimeout(injectFeedbackMenuItems, 120);
+  }, true);
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    const target = event.target as Element | null;
+    const container = target?.closest<HTMLElement>(commentContainerSelector);
+    if (!container) {
+      return;
+    }
+
+    activeFeedbackContainer = container;
+    window.setTimeout(injectFeedbackMenuItems, 0);
+    window.setTimeout(injectFeedbackMenuItems, 120);
+  }, true);
+}
+
+function injectFeedbackMenuItems(): void {
+  if (!activeFeedbackContainer) {
     return;
   }
 
-  const controls = document.createElement("div");
-  controls.className = FEEDBACK_CONTROLS_CLASS;
+  const menu = findOpenMenu();
+  if (!menu || menu.querySelector(`.${MENU_ITEM_CLASS}`)) {
+    return;
+  }
 
-  const spamButton = createFeedbackButton("Spam", "spam");
-  const notSpamButton = createFeedbackButton("Not spam", "not_spam");
+  if (!activeFeedbackContainer.hasAttribute(HASH_ATTRIBUTE)) {
+    scanComments();
+  }
 
-  controls.append(spamButton, notSpamButton);
-  container.prepend(controls);
+  const separator = document.createElement("div");
+  separator.className = MENU_SEPARATOR_CLASS;
+
+  const spamItem = createFeedbackMenuItem("Mark as spam", "spam");
+  const notSpamItem = createFeedbackMenuItem("Mark as not spam", "not_spam");
+
+  menu.append(separator, spamItem, notSpamItem);
+  updateMenuItemState(activeFeedbackContainer);
 }
 
-function createFeedbackButton(label: string, feedback: FeedbackLabel): HTMLButtonElement {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.textContent = label;
-  button.dataset.feedback = feedback;
-  button.addEventListener("click", (event) => {
+function findOpenMenu(): HTMLElement | null {
+  const menus = Array.from(document.querySelectorAll<HTMLElement>(MENU_SELECTOR));
+  return menus.find((menu) => menu.offsetParent !== null || menu.getClientRects().length > 0) ?? null;
+}
+
+function createFeedbackMenuItem(label: string, feedback: FeedbackLabel): HTMLElement {
+  const item = document.createElement("div");
+  item.className = MENU_ITEM_CLASS;
+  item.dataset.feedback = feedback;
+  item.role = "menuitem";
+  item.tabIndex = 0;
+  item.textContent = label;
+
+  item.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
 
-    const target = event.currentTarget as HTMLButtonElement;
-    const container = target.closest<HTMLElement>(commentContainerSelector);
-    if (container) {
-      void handleFeedback(container, feedback);
+    if (activeFeedbackContainer) {
+      void handleFeedback(activeFeedbackContainer, feedback);
     }
   });
 
-  return button;
+  item.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (activeFeedbackContainer) {
+      void handleFeedback(activeFeedbackContainer, feedback);
+    }
+  });
+
+  return item;
 }
 
 async function handleFeedback(container: HTMLElement, feedback: FeedbackLabel): Promise<void> {
@@ -218,20 +293,21 @@ async function handleFeedback(container: HTMLElement, feedback: FeedbackLabel): 
     container.setAttribute(REASONS_ATTRIBUTE, uniqueReasons([...reasons, "user-marked-not-spam"]).join(","));
   }
 
-  updateFeedbackControls(container, feedback);
+  updateMenuItemState(container);
   applyVisibility();
 }
 
-function updateFeedbackControls(container: HTMLElement, feedback: FeedbackLabel): void {
-  const controls = container.querySelector<HTMLElement>(`.${FEEDBACK_CONTROLS_CLASS}`);
-  if (!controls) {
+function updateMenuItemState(container: HTMLElement): void {
+  const feedback = container.getAttribute(FEEDBACK_ATTRIBUTE);
+  const menu = findOpenMenu();
+  if (!menu) {
     return;
   }
 
-  controls.querySelectorAll<HTMLButtonElement>("button").forEach((button) => {
-    const isSelected = button.dataset.feedback === feedback;
-    button.toggleAttribute("aria-pressed", isSelected);
-    button.disabled = isSelected;
+  menu.querySelectorAll<HTMLElement>(`.${MENU_ITEM_CLASS}`).forEach((item) => {
+    const isSelected = item.dataset.feedback === feedback;
+    item.toggleAttribute("aria-checked", isSelected);
+    item.toggleAttribute("data-selected", isSelected);
   });
 }
 
@@ -271,12 +347,6 @@ function resetProcessedComments(): void {
     container.removeAttribute(REASONS_ATTRIBUTE);
     container.removeAttribute(HASH_ATTRIBUTE);
     container.removeAttribute(FEEDBACK_ATTRIBUTE);
-
-    const controls = container.querySelector<HTMLElement>(`.${FEEDBACK_CONTROLS_CLASS}`);
-    controls?.querySelectorAll<HTMLButtonElement>("button").forEach((button) => {
-      button.disabled = false;
-      button.removeAttribute("aria-pressed");
-    });
   });
 }
 
@@ -314,40 +384,35 @@ function injectStyles(): void {
       font: 500 12px/1.4 Roboto, Arial, sans-serif;
     }
 
-    :is(${commentContainerSelector}) .${FEEDBACK_CONTROLS_CLASS} {
+    .${MENU_SEPARATOR_CLASS} {
+      height: 1px;
+      margin: 6px 0;
+      background: #e8eaed;
+    }
+
+    .${MENU_ITEM_CLASS} {
       display: flex;
-      gap: 6px;
-      margin: 0 0 6px 56px;
-      opacity: 0.28;
-      transition: opacity 120ms ease;
-    }
-
-    :is(${commentContainerSelector}):hover .${FEEDBACK_CONTROLS_CLASS},
-    :is(${commentContainerSelector}) .${FEEDBACK_CONTROLS_CLASS}:focus-within,
-    :is(${commentContainerSelector})[${HIDDEN_ATTRIBUTE}="true"] .${FEEDBACK_CONTROLS_CLASS} {
-      opacity: 1;
-    }
-
-    :is(${commentContainerSelector}) .${FEEDBACK_CONTROLS_CLASS} button {
-      min-height: 24px;
-      padding: 2px 8px;
-      border: 1px solid #dadce0;
-      border-radius: 4px;
-      background: #fff;
-      color: #3c4043;
+      align-items: center;
+      min-height: 36px;
+      padding: 0 16px;
+      color: #0f0f0f;
       cursor: pointer;
-      font: 500 12px/1.4 Roboto, Arial, sans-serif;
+      font: 400 14px/1.4 Roboto, Arial, sans-serif;
+      white-space: nowrap;
     }
 
-    :is(${commentContainerSelector}) .${FEEDBACK_CONTROLS_CLASS} button:hover {
-      background: #f1f3f4;
+    .${MENU_ITEM_CLASS}:hover,
+    .${MENU_ITEM_CLASS}:focus {
+      background: rgba(0, 0, 0, 0.08);
+      outline: none;
     }
 
-    :is(${commentContainerSelector}) .${FEEDBACK_CONTROLS_CLASS} button[aria-pressed="true"] {
-      border-color: #1a73e8;
-      background: #e8f0fe;
-      color: #174ea6;
-      cursor: default;
+    .${MENU_ITEM_CLASS}[data-selected]::after {
+      content: "Selected";
+      margin-left: auto;
+      padding-left: 16px;
+      color: #606060;
+      font-size: 12px;
     }
   `;
   document.documentElement.append(style);
