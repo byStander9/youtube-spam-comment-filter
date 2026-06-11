@@ -1,37 +1,47 @@
 # YouTube Spam Comment Filter
 
-Chrome extension MVP that hides likely spam comments on YouTube video pages.
+[한국어 README](./README.ko.md)
 
-## What It Does
+A Chrome extension that hides likely spam comments on YouTube video pages while preserving uploader comments and highly liked comments.
 
-- Runs on `https://www.youtube.com/watch*`
-- Detects YouTube comment nodes as they load
-- Hides comments that match simple spam heuristics
-- Lets you turn filtering on or off from the extension popup
-- Lets you reveal hidden comments in a faded debug view
+## Features
+
+- Filters comments directly on YouTube watch pages.
+- Handles dynamically loaded comments while scrolling.
+- Lets you turn filtering on or off from the extension popup.
+- Shows scanned and hidden comment counts.
+- Can reveal filtered comments in a faded debug view.
+- Exempts comments written by the video uploader.
+- Exempts comments with many likes. The default threshold is 100 likes.
+- Avoids treating casual repeated letters such as `ㅋㅋㅋㅋ`, `ㅎㅎㅎㅎ`, or `!!!!!` as spam by themselves.
+
+## Filtering Approach
+
+The extension uses local rule-based heuristics. It does not send comment text to an external server.
+
+Current spam signals include:
+
+- Suspicious links
+- Telegram, KakaoTalk, WhatsApp, Discord, DM, or profile-check invitations
+- Investment, crypto, profit, side-job, or forex promotion
+- Giveaway, airdrop, coupon, prize, or event promotion
+- Click, join, register, claim, or similar call-to-action wording
+- Repeated promotional tokens
+- Multiple links
+- Excessive hashtags or mentions
+- Very short promotional pitches
+
+Filtering is score-based, so a plain link or casual repeated expression should not be enough to hide a comment.
 
 ## Local Setup
 
-Install dependencies inside this project folder:
+Install dependencies:
 
 ```powershell
 npm install
 ```
 
-Build the unpacked extension:
-
-```powershell
-npm run build
-```
-
-Then load `dist` in Chrome:
-
-1. Open `chrome://extensions`
-2. Enable Developer mode
-3. Click Load unpacked
-4. Select this project's `dist` folder
-
-## Checks
+Run checks:
 
 ```powershell
 npm run check
@@ -39,9 +49,44 @@ npm test
 npm run build
 ```
 
-## MVP Limits
+## Load in Chrome
 
-- This version only hides comments in your browser.
+1. Open `chrome://extensions`.
+2. Enable Developer mode.
+3. Click Load unpacked.
+4. Select the generated `dist` folder.
+5. Open a YouTube video page and scroll to the comments.
+6. Open the extension popup to check scanned and hidden counts.
+
+After changing source code, rebuild and reload the extension:
+
+```powershell
+npm run build
+```
+
+## Project Structure
+
+```text
+src/
+  content/
+    content.ts
+    spamDetector.ts
+    youtubeComments.ts
+  popup/
+    popup.css
+    popup.ts
+  shared/
+    settings.ts
+    types.ts
+public/
+  manifest.json
+popup.html
+```
+
+## Limitations
+
+- The extension only hides comments in your browser.
 - It does not delete, report, or modify YouTube comments.
-- It uses local rules, not an AI model or external server.
-- Rule-based filtering can produce false positives, so use the popup's reveal option when tuning.
+- It does not use machine learning or an external moderation API.
+- YouTube DOM changes may require selector updates.
+- Rule-based filtering can still produce false positives or false negatives.
