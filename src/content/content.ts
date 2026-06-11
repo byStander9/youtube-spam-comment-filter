@@ -1,4 +1,11 @@
 import { detectSpam } from "./spamDetector";
+import {
+  applyLearningToResult,
+  createEmptyLearningProfile,
+  hashCommentText,
+  loadLearningProfile,
+  type LearningProfile
+} from "./feedbackStore";
 import { commentContainerSelector, findCommentNodes, observeCommentChanges } from "./youtubeComments";
 import type { FilterSettings, FilterStats, RuntimeMessage } from "../shared/types";
 
@@ -12,6 +19,7 @@ const SETTINGS_KEY = "filterSettings";
 const PROCESSED_ATTRIBUTE = "data-yscf-processed";
 const HIDDEN_ATTRIBUTE = "data-yscf-hidden";
 const REASONS_ATTRIBUTE = "data-yscf-reasons";
+const HASH_ATTRIBUTE = "data-yscf-hash";
 const STYLE_ID = "yscf-style";
 
 const DEFAULT_SETTINGS: FilterSettings = {
@@ -24,6 +32,7 @@ let stats: FilterStats = {
   hiddenCount: 0,
   scannedCount: 0
 };
+let learningProfile: LearningProfile = createEmptyLearningProfile();
 let scanQueued = false;
 let lastSeenUrl = location.href;
 
@@ -36,7 +45,10 @@ async function initialize(): Promise<void> {
   injectStyles();
   registerMessageHandlers();
   observeCommentChanges(scanSoon);
-  settings = await getContentSettings();
+  [settings, learningProfile] = await Promise.all([
+    getContentSettings(),
+    loadLearningProfile()
+  ]);
   scanSoon();
 }
 
@@ -96,12 +108,16 @@ function scanComments(): void {
       continue;
     }
 
-    const result = detectSpam(comment.text, {
+    const commentHash = hashCommentText(comment.text);
+    const baseResult = detectSpam(comment.text, {
       isUploader: comment.isUploader,
       likeCount: comment.likeCount
     });
+    const result = applyLearningToResult(baseResult, learningProfile, commentHash);
+
     comment.container.setAttribute(PROCESSED_ATTRIBUTE, "true");
     comment.container.setAttribute(REASONS_ATTRIBUTE, result.reasons.join(","));
+    comment.container.setAttribute(HASH_ATTRIBUTE, commentHash);
     stats.scannedCount += 1;
 
     if (result.isSpam) {
