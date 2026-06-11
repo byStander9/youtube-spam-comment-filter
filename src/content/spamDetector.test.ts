@@ -52,4 +52,25 @@ describe("detectSpam", () => {
 
     expect(result.isSpam).toBe(false);
   });
+
+  it("keeps comments that criticize stock trading rooms visible", () => {
+    const result = detectSpam("리딩방 문제점을 잘 지적한 영상이라 공감합니다.");
+
+    expect(result.isSpam).toBe(false);
+    expect(result.reasons).toContain("money-discussion");
+  });
+
+  it("does not treat a financial topic word alone as spam", () => {
+    const result = detectSpam("이 영상 보고 리딩방이라는 단어를 처음 알았습니다.");
+
+    expect(result.isSpam).toBe(false);
+    expect(result.reasons).toContain("money-topic");
+  });
+
+  it("flags financial topic comments when they include solicitation", () => {
+    const result = detectSpam("무료 리딩방 가입 문의 주세요");
+
+    expect(result.isSpam).toBe(true);
+    expect(result.reasons).toContain("money-promo");
+  });
 });

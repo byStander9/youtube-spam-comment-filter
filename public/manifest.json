@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Spam Comment Filter for YouTube™",
   "description": "Hide likely spam comments on YouTube™ pages with local filtering and feedback.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "permissions": ["storage", "activeTab", "scripting"],
   "host_permissions": ["https://www.youtube.com/*"],
   "content_scripts": [

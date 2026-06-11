@@ -51,6 +51,7 @@ let learningProfile: LearningProfile = createEmptyLearningProfile();
 let scanQueued = false;
 let lastSeenUrl = location.href;
 let activeFeedbackContainer: HTMLElement | null = null;
+let lastMenuFeedbackAt = 0;
 
 if (!window.__yscfInitialized) {
   window.__yscfInitialized = true;
@@ -234,13 +235,16 @@ function createFeedbackMenuItem(label: string, feedback: FeedbackLabel): HTMLEle
   item.tabIndex = 0;
   item.textContent = label;
 
+  item.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    submitFeedbackFromMenu(feedback);
+  }, true);
+
   item.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
-
-    if (activeFeedbackContainer) {
-      void handleFeedback(activeFeedbackContainer, feedback);
-    }
+    submitFeedbackFromMenu(feedback);
   });
 
   item.addEventListener("keydown", (event) => {
@@ -251,12 +255,25 @@ function createFeedbackMenuItem(label: string, feedback: FeedbackLabel): HTMLEle
     event.preventDefault();
     event.stopPropagation();
 
-    if (activeFeedbackContainer) {
-      void handleFeedback(activeFeedbackContainer, feedback);
-    }
+    submitFeedbackFromMenu(feedback);
   });
 
   return item;
+}
+
+function submitFeedbackFromMenu(feedback: FeedbackLabel): void {
+  const now = Date.now();
+  if (now - lastMenuFeedbackAt < 250) {
+    return;
+  }
+
+  lastMenuFeedbackAt = now;
+
+  if (!activeFeedbackContainer) {
+    return;
+  }
+
+  void handleFeedback(activeFeedbackContainer, feedback);
 }
 
 async function handleFeedback(container: HTMLElement, feedback: FeedbackLabel): Promise<void> {
@@ -388,7 +405,7 @@ function injectStyles(): void {
     .${MENU_SEPARATOR_CLASS} {
       height: 1px;
       margin: 6px 0;
-      background: #e8eaed;
+      background: var(--yt-spec-10-percent-layer, rgba(128, 128, 128, 0.24));
     }
 
     .${MENU_ITEM_CLASS} {
@@ -396,7 +413,8 @@ function injectStyles(): void {
       align-items: center;
       min-height: 36px;
       padding: 0 16px;
-      color: #0f0f0f;
+      background: transparent;
+      color: var(--yt-spec-text-primary, currentColor);
       cursor: pointer;
       font: 400 14px/1.4 Roboto, Arial, sans-serif;
       white-space: nowrap;
@@ -404,7 +422,7 @@ function injectStyles(): void {
 
     .${MENU_ITEM_CLASS}:hover,
     .${MENU_ITEM_CLASS}:focus {
-      background: rgba(0, 0, 0, 0.08);
+      background: var(--yt-spec-10-percent-layer, rgba(128, 128, 128, 0.16));
       outline: none;
     }
 
@@ -412,7 +430,7 @@ function injectStyles(): void {
       content: "Selected";
       margin-left: auto;
       padding-left: 16px;
-      color: #606060;
+      color: var(--yt-spec-text-secondary, currentColor);
       font-size: 12px;
     }
   `;
