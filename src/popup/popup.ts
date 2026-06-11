@@ -7,11 +7,25 @@ const showHiddenInput = document.querySelector<HTMLInputElement>("#showHidden");
 const hiddenCountElement = document.querySelector<HTMLElement>("#hiddenCount");
 const scannedCountElement = document.querySelector<HTMLElement>("#scannedCount");
 const statusElement = document.querySelector<HTMLElement>("#status");
+const totalFeedbackElement = document.querySelector<HTMLElement>("#totalFeedback");
+const spamFeedbackElement = document.querySelector<HTMLElement>("#spamFeedback");
+const notSpamFeedbackElement = document.querySelector<HTMLElement>("#notSpamFeedback");
+const clearLearningButton = document.querySelector<HTMLButtonElement>("#clearLearning");
 
 void initialize();
 
 async function initialize(): Promise<void> {
-  if (!enabledInput || !showHiddenInput || !hiddenCountElement || !scannedCountElement || !statusElement) {
+  if (
+    !enabledInput ||
+    !showHiddenInput ||
+    !hiddenCountElement ||
+    !scannedCountElement ||
+    !statusElement ||
+    !totalFeedbackElement ||
+    !spamFeedbackElement ||
+    !notSpamFeedbackElement ||
+    !clearLearningButton
+  ) {
     return;
   }
 
@@ -31,6 +45,10 @@ async function initialize(): Promise<void> {
       enabled: enabledInput.checked,
       showHidden: showHiddenInput.checked
     });
+  });
+
+  clearLearningButton.addEventListener("click", () => {
+    void clearLearningData();
   });
 }
 
@@ -52,6 +70,28 @@ async function updateSettings(settings: FilterSettings): Promise<void> {
   await refreshStats();
 }
 
+async function clearLearningData(): Promise<void> {
+  const tab = await getActiveTab();
+  if (!(await ensureContentScript(tab))) {
+    return;
+  }
+
+  clearLearningButton!.disabled = true;
+  const response = await chrome.tabs
+    .sendMessage(tab.id!, { type: "clearLearningData" } satisfies RuntimeMessage)
+    .catch(() => undefined);
+  clearLearningButton!.disabled = false;
+
+  if (response?.type !== "learningDataCleared") {
+    setStatus("학습 데이터를 초기화하지 못했습니다. 페이지를 새로고침해 주세요.");
+    return;
+  }
+
+  renderLearningStats(response.stats);
+  setStatus("로컬 학습 데이터를 초기화했습니다.");
+  await refreshStats();
+}
+
 async function refreshStats(): Promise<void> {
   const tab = await getActiveTab();
   if (!(await ensureContentScript(tab))) {
@@ -69,11 +109,32 @@ async function refreshStats(): Promise<void> {
 
   hiddenCountElement!.textContent = String(response.stats.hiddenCount);
   scannedCountElement!.textContent = String(response.stats.scannedCount);
+  await refreshLearningStats(tab);
   setStatus(
     response.stats.scannedCount > 0
       ? "댓글 필터가 현재 페이지에서 동작 중입니다."
       : "댓글을 아직 찾지 못했습니다. 댓글 영역까지 스크롤한 뒤 다시 열어주세요."
   );
+}
+
+async function refreshLearningStats(tab: chrome.tabs.Tab): Promise<void> {
+  const response = await chrome.tabs
+    .sendMessage(tab.id!, { type: "getLearningStats" } satisfies RuntimeMessage)
+    .catch(() => undefined);
+
+  if (response?.type === "learningStats") {
+    renderLearningStats(response.stats);
+  }
+}
+
+function renderLearningStats(stats: {
+  totalFeedback: number;
+  spamFeedback: number;
+  notSpamFeedback: number;
+}): void {
+  totalFeedbackElement!.textContent = String(stats.totalFeedback);
+  spamFeedbackElement!.textContent = String(stats.spamFeedback);
+  notSpamFeedbackElement!.textContent = String(stats.notSpamFeedback);
 }
 
 async function getActiveTab(): Promise<chrome.tabs.Tab> {

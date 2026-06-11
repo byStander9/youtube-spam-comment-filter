@@ -91,6 +91,68 @@ input[type="checkbox"] {
   font-weight: 700;
 }
 
+.learning {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e8eaed;
+}
+
+.learning header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 0 8px;
+  border: 0;
+}
+
+.learning h2 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.learning button {
+  min-height: 26px;
+  padding: 3px 9px;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  background: #fff;
+  color: #3c4043;
+  cursor: pointer;
+  font: 500 12px/1.4 Arial, "Noto Sans KR", sans-serif;
+}
+
+.learning button:hover {
+  background: #f1f3f4;
+}
+
+.learning dl {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 0;
+}
+
+.learning dl div {
+  padding: 8px;
+  border: 1px solid #e8eaed;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.learning dt {
+  margin: 0 0 2px;
+  color: #5f6368;
+  font-size: 11px;
+}
+
+.learning dd {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
 .status {
   min-height: 16px;
   margin: 12px 0 0;

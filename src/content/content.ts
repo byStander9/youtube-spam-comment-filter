@@ -1,7 +1,9 @@
 import { detectSpam } from "./spamDetector";
 import {
   applyLearningToResult,
+  clearLearningProfile,
   createEmptyLearningProfile,
+  getLearningStats,
   recordFeedback,
   type FeedbackLabel,
   hashCommentText,
@@ -82,6 +84,18 @@ function registerMessageHandlers(): void {
       applyVisibility();
       sendResponse({ ok: true });
       return;
+    }
+
+    if (message.type === "getLearningStats") {
+      sendResponse({ type: "learningStats", stats: getLearningStats(learningProfile) } satisfies RuntimeMessage);
+      return;
+    }
+
+    if (message.type === "clearLearningData") {
+      void clearLearningData().then((stats) => {
+        sendResponse({ type: "learningDataCleared", stats } satisfies RuntimeMessage);
+      });
+      return true;
     }
 
     if (message.type === "getStats") {
@@ -235,6 +249,35 @@ function resetStatsAfterNavigation(): void {
     hiddenCount: 0,
     scannedCount: 0
   };
+}
+
+async function clearLearningData() {
+  await clearLearningProfile();
+  learningProfile = createEmptyLearningProfile();
+  resetProcessedComments();
+  stats = {
+    hiddenCount: 0,
+    scannedCount: 0
+  };
+  scanSoon();
+
+  return getLearningStats(learningProfile);
+}
+
+function resetProcessedComments(): void {
+  document.querySelectorAll<HTMLElement>(commentContainerSelector).forEach((container) => {
+    container.removeAttribute(PROCESSED_ATTRIBUTE);
+    container.removeAttribute(HIDDEN_ATTRIBUTE);
+    container.removeAttribute(REASONS_ATTRIBUTE);
+    container.removeAttribute(HASH_ATTRIBUTE);
+    container.removeAttribute(FEEDBACK_ATTRIBUTE);
+
+    const controls = container.querySelector<HTMLElement>(`.${FEEDBACK_CONTROLS_CLASS}`);
+    controls?.querySelectorAll<HTMLButtonElement>("button").forEach((button) => {
+      button.disabled = false;
+      button.removeAttribute("aria-pressed");
+    });
+  });
 }
 
 function applyVisibility(): void {
