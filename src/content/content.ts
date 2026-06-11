@@ -2,6 +2,8 @@ import { detectSpam } from "./spamDetector";
 import {
   applyLearningToResult,
   createEmptyLearningProfile,
+  recordFeedback,
+  type FeedbackLabel,
   hashCommentText,
   loadLearningProfile,
   type LearningProfile
@@ -20,7 +22,9 @@ const PROCESSED_ATTRIBUTE = "data-yscf-processed";
 const HIDDEN_ATTRIBUTE = "data-yscf-hidden";
 const REASONS_ATTRIBUTE = "data-yscf-reasons";
 const HASH_ATTRIBUTE = "data-yscf-hash";
+const FEEDBACK_ATTRIBUTE = "data-yscf-feedback";
 const STYLE_ID = "yscf-style";
+const FEEDBACK_CONTROLS_CLASS = "yscf-feedback-controls";
 
 const DEFAULT_SETTINGS: FilterSettings = {
   enabled: true,
@@ -124,9 +128,101 @@ function scanComments(): void {
       comment.container.setAttribute(HIDDEN_ATTRIBUTE, "true");
       stats.hiddenCount += 1;
     }
+
+    renderFeedbackControls(comment.container);
   }
 
   applyVisibility();
+}
+
+function renderFeedbackControls(container: HTMLElement): void {
+  if (container.querySelector(`.${FEEDBACK_CONTROLS_CLASS}`)) {
+    return;
+  }
+
+  const controls = document.createElement("div");
+  controls.className = FEEDBACK_CONTROLS_CLASS;
+
+  const spamButton = createFeedbackButton("Spam", "spam");
+  const notSpamButton = createFeedbackButton("Not spam", "not_spam");
+
+  controls.append(spamButton, notSpamButton);
+  container.prepend(controls);
+}
+
+function createFeedbackButton(label: string, feedback: FeedbackLabel): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = label;
+  button.dataset.feedback = feedback;
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const target = event.currentTarget as HTMLButtonElement;
+    const container = target.closest<HTMLElement>(commentContainerSelector);
+    if (container) {
+      void handleFeedback(container, feedback);
+    }
+  });
+
+  return button;
+}
+
+async function handleFeedback(container: HTMLElement, feedback: FeedbackLabel): Promise<void> {
+  const commentHash = container.getAttribute(HASH_ATTRIBUTE);
+  if (!commentHash) {
+    return;
+  }
+
+  const reasons = (container.getAttribute(REASONS_ATTRIBUTE) ?? "")
+    .split(",")
+    .map((reason) => reason.trim())
+    .filter(Boolean);
+
+  learningProfile = await recordFeedback({
+    commentHash,
+    label: feedback,
+    reasons
+  });
+
+  container.setAttribute(FEEDBACK_ATTRIBUTE, feedback);
+
+  if (feedback === "spam") {
+    if (!container.hasAttribute(HIDDEN_ATTRIBUTE)) {
+      stats.hiddenCount += 1;
+    }
+
+    container.setAttribute(HIDDEN_ATTRIBUTE, "true");
+    container.setAttribute(REASONS_ATTRIBUTE, uniqueReasons([...reasons, "user-marked-spam"]).join(","));
+  } else {
+    if (container.hasAttribute(HIDDEN_ATTRIBUTE)) {
+      stats.hiddenCount = Math.max(0, stats.hiddenCount - 1);
+    }
+
+    container.removeAttribute(HIDDEN_ATTRIBUTE);
+    container.setAttribute(REASONS_ATTRIBUTE, uniqueReasons([...reasons, "user-marked-not-spam"]).join(","));
+  }
+
+  updateFeedbackControls(container, feedback);
+  applyVisibility();
+}
+
+function updateFeedbackControls(container: HTMLElement, feedback: FeedbackLabel): void {
+  const controls = container.querySelector<HTMLElement>(`.${FEEDBACK_CONTROLS_CLASS}`);
+  if (!controls) {
+    return;
+  }
+
+  controls.querySelectorAll<HTMLButtonElement>("button").forEach((button) => {
+    const isSelected = button.dataset.feedback === feedback;
+    button.toggleAttribute("aria-pressed", isSelected);
+    button.disabled = isSelected;
+  });
+}
+
+function uniqueReasons(reasons: string[]): string[] {
+  return Array.from(new Set(reasons));
 }
 
 function resetStatsAfterNavigation(): void {
@@ -173,6 +269,42 @@ function injectStyles(): void {
       background: #d93025;
       color: #fff;
       font: 500 12px/1.4 Roboto, Arial, sans-serif;
+    }
+
+    :is(${commentContainerSelector}) .${FEEDBACK_CONTROLS_CLASS} {
+      display: flex;
+      gap: 6px;
+      margin: 0 0 6px 56px;
+      opacity: 0.28;
+      transition: opacity 120ms ease;
+    }
+
+    :is(${commentContainerSelector}):hover .${FEEDBACK_CONTROLS_CLASS},
+    :is(${commentContainerSelector}) .${FEEDBACK_CONTROLS_CLASS}:focus-within,
+    :is(${commentContainerSelector})[${HIDDEN_ATTRIBUTE}="true"] .${FEEDBACK_CONTROLS_CLASS} {
+      opacity: 1;
+    }
+
+    :is(${commentContainerSelector}) .${FEEDBACK_CONTROLS_CLASS} button {
+      min-height: 24px;
+      padding: 2px 8px;
+      border: 1px solid #dadce0;
+      border-radius: 4px;
+      background: #fff;
+      color: #3c4043;
+      cursor: pointer;
+      font: 500 12px/1.4 Roboto, Arial, sans-serif;
+    }
+
+    :is(${commentContainerSelector}) .${FEEDBACK_CONTROLS_CLASS} button:hover {
+      background: #f1f3f4;
+    }
+
+    :is(${commentContainerSelector}) .${FEEDBACK_CONTROLS_CLASS} button[aria-pressed="true"] {
+      border-color: #1a73e8;
+      background: #e8f0fe;
+      color: #174ea6;
+      cursor: default;
     }
   `;
   document.documentElement.append(style);
