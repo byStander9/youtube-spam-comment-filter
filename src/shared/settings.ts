@@ -4,7 +4,8 @@ const SETTINGS_KEY = "filterSettings";
 
 export const DEFAULT_SETTINGS: FilterSettings = {
   enabled: true,
-  showHidden: false
+  showHidden: false,
+  language: "en"
 };
 
 export async function getSettings(): Promise<FilterSettings> {

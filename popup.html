@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="ko">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>YouTube Spam Comment Filter</title>
+    <title>Spam Comment Filter for YouTube</title>
     <script type="module" src="/src/popup/popup.ts"></script>
   </head>
   <body>
@@ -11,21 +11,25 @@
       <header>
         <p class="eyebrow">YouTube</p>
         <h1>Spam Comment Filter</h1>
+        <div class="language-switch" aria-label="Language">
+          <button id="languageEn" type="button" data-language="en">English</button>
+          <button id="languageKo" type="button" data-language="ko">한국어</button>
+        </div>
       </header>
 
       <section class="controls" aria-label="Filter controls">
         <label class="toggle-row">
           <span>
-            <strong>필터 사용</strong>
-            <small>스팸으로 보이는 댓글 숨김</small>
+            <strong data-i18n="filterEnabledTitle">Filter enabled</strong>
+            <small data-i18n="filterEnabledDescription">Hide comments that look like spam</small>
           </span>
           <input id="enabled" type="checkbox" />
         </label>
 
         <label class="toggle-row">
           <span>
-            <strong>숨긴 댓글 표시</strong>
-            <small>숨기지 않고 흐리게 표시</small>
+            <strong data-i18n="showHiddenTitle">Show hidden comments</strong>
+            <small data-i18n="showHiddenDescription">Show filtered comments in a faded view</small>
           </span>
           <input id="showHidden" type="checkbox" />
         </label>
@@ -34,36 +38,36 @@
       <section class="stats" aria-label="Filter stats">
         <div>
           <span id="hiddenCount">0</span>
-          <small>숨긴 댓글</small>
+          <small data-i18n="hiddenComments">Hidden</small>
         </div>
         <div>
           <span id="scannedCount">0</span>
-          <small>검사한 댓글</small>
+          <small data-i18n="scannedComments">Scanned</small>
         </div>
       </section>
 
       <section class="learning" aria-label="Learning stats">
         <header>
-          <h2>로컬 학습</h2>
-          <button id="clearLearning" type="button">초기화</button>
+          <h2 data-i18n="localLearning">Local learning</h2>
+          <button id="clearLearning" type="button" data-i18n="clearLearning">Clear</button>
         </header>
         <dl>
           <div>
-            <dt>피드백</dt>
+            <dt data-i18n="feedback">Feedback</dt>
             <dd id="totalFeedback">0</dd>
           </div>
           <div>
-            <dt>스팸</dt>
+            <dt data-i18n="spamFeedback">Spam</dt>
             <dd id="spamFeedback">0</dd>
           </div>
           <div>
-            <dt>정상</dt>
+            <dt data-i18n="notSpamFeedback">Not spam</dt>
             <dd id="notSpamFeedback">0</dd>
           </div>
         </dl>
       </section>
 
-      <p id="status" class="status">YouTube 영상 페이지에서 댓글 영역을 열어주세요.</p>
+      <p id="status" class="status" data-i18n="openYouTubeStatus">Open a YouTube video page and scroll to comments.</p>
     </main>
   </body>
 </html>

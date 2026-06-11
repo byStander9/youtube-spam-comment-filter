@@ -1,6 +1,9 @@
+export type UiLanguage = "en" | "ko";
+
 export type FilterSettings = {
   enabled: boolean;
   showHidden: boolean;
+  language: UiLanguage;
 };
 
 export type FilterStats = {

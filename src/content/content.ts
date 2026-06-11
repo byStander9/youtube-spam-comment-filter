@@ -38,7 +38,8 @@ const MENU_SELECTOR = [
 
 const DEFAULT_SETTINGS: FilterSettings = {
   enabled: true,
-  showHidden: false
+  showHidden: false,
+  language: "en"
 };
 
 let settings: FilterSettings = DEFAULT_SETTINGS;
